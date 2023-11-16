@@ -10,12 +10,27 @@ fn main() {
     map.set_blocks(Vec::from([(1, 0), (1, 1), (1, 3), (1, 4)])).unwrap();
     map.iter().for_each(|it| {println!(); it.iter().for_each(|x| {print!("[{:#?}] ", x)})});
     open_set.push((start_x, start_y));
-    println!("Neighbours: {:?}", get_neighbours(map, 0, 3));
-    while open_set.len() > 0 {
-        break;
+    println!("Neighbours: {:?}", get_neighbours(map.clone(), 0, 3));
+    let start = (start_x as i64, start_y as i64);
+    let end = (end_x as i64, end_y as i64);
+    let mut current = start;
+    while open_set.clone().len() > 0 {
+            current = get_lowest_f_cost(open_set.clone(), start, end, map.clone());
+            open_set.retain(|&x| x == (current.0 as usize, current.1 as usize));
+            println!("Current: {:?}", current);
+            closed_set.push((current.0 as usize, current.1 as usize));
+            if current == end {
+                println!("Found end");
+                break;
+            }
+            let (x, y) = current;
+            let current = (x, y);
+            open_set.push((current.0 as usize, current.1 as usize));
     }
     println!("Closed set: {:?}", closed_set);
-}
+    }
+
+
 trait X {
     fn set_start(&mut self, x: usize, y: usize) -> Result<(), &'static str>;
     fn set_end(&mut self, x: usize, y: usize) -> Result<(), &'static str>;
@@ -92,8 +107,47 @@ pub fn get_neighbours(map: Vec<Vec<NodeType>>, x: i64, y: i64) -> Vec<(i64, i64)
     neighbours
 }
 
-pub fn get_h_cost(node: (i64, i64), end: (i64, i64)) -> f64 {
+pub fn get_h_cost(node: (i64, i64), end: (i64, i64)) -> i64 {
     let (x1, y1) = node;
     let (x2, y2) = end;
-    f64::sqrt(((x1 - x2).abs() + (y1 - y2).abs()) as f64)
+    (x1 - x2).abs() + (y1 - y2).abs()
+}
+pub fn get_g_cost(node: (i64, i64), start: (i64, i64)) -> i64 {
+    let (x1, y1) = node;
+    let (x2, y2) = start;
+    (x1 - x2).abs() + (y1 - y2).abs() 
+}
+pub fn get_f_cost(node: (i64, i64), start: (i64, i64), end: (i64, i64)) -> i64 {
+    get_g_cost(node, start) + get_h_cost(node, end)
+}
+
+pub fn get_lowest_f_cost(open_set: Vec<(usize, usize)>, start: (i64, i64), end:(i64, i64), map:Vec<Vec<NodeType>> ) -> (i64, i64) {
+    let mut lowest_f_costs :Vec<((i64, i64), i64)> = Vec::new();
+    for i in open_set {
+        let (x, y) = i;
+        let x = x as i64;
+        let y = y as i64;
+        let i = (x, y);
+        if lowest_f_costs.len() == 0 {
+            println!("Nolen");
+            lowest_f_costs.push((i, get_f_cost(i, start, end)));
+        } else {
+            let neighbours = get_neighbours(map.clone(), x as i64, y as i64);
+            for neighbour in neighbours {
+                println!("Neighbour: {:?}", neighbour);
+                lowest_f_costs.push(((x, y), get_f_cost(neighbour, start, end)))
+            }
+        }
+    }
+    lowest_f_costs.sort();
+    let min_value = lowest_f_costs.first().unwrap().1;
+    lowest_f_costs.retain(|&(_, value)| value == min_value);
+    let mut closest = lowest_f_costs.first().unwrap().0;
+    for ((x, y), _) in lowest_f_costs {
+        if get_h_cost((x, y), end) < get_h_cost(closest, end) {
+            closest = (x, y);
+        }
+    }
+    println!("END");
+    closest
 }
