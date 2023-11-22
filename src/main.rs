@@ -25,15 +25,25 @@ fn main() {
     }
     println!();
     let mut current_lowest_f_cost = -1;
+    let mut current_lowest_h_cost: i64 = -1;
     let mut lowest_f_costs: Vec<(i64, i64)> = Vec::new();
+    let mut lowest_h_cost : (i64, i64) = (0, 0);
     let mut neighbour_list: Vec<(i64, i64)> = Vec::new();
     // Start of algorithm
-    frontier_set.push(current);
+    let mut counter = 0;
+    // Each loop is a step
     loop {
+        if counter == 3 {
+            break;
+        }
+        counter += 1;
+        frontier_set.push(current);
+        explored_set.push(current);
         lowest_f_costs.clear();
         for neighbours in frontier_set.clone() {
             neighbour_list.append(&mut get_neighbours(map.clone(), (neighbours.0 as i64, neighbours.1 as i64)));
         }
+
         for neighbour in neighbour_list.clone() {
             if current_lowest_f_cost == -1 {
                 current_lowest_f_cost = get_f_cost(neighbour, start, end);
@@ -50,30 +60,32 @@ fn main() {
             println!("{:?}, F_cost: {}, H_cost: {}", neighbour, get_f_cost(neighbour, start, end), get_h_cost(neighbour, end));
             frontier_set.push((neighbour.0 as usize, neighbour.1 as usize));
         }
-        let mut current_lowest_h_cost = -1;
-        lowest_f_costs.iter().for_each(|x| if explored_set.contains(&(x.clone().0 as usize, x.clone().1 as usize)) {lowest_f_costs.remove(lowest_f_costs.iter().position(|&y| y == *x).unwrap());});
-        for lowest_f_cost in lowest_f_costs.clone() {
-            if lowest_f_cost == end {
-                println!("Found end");
-                break;
-            }
-            else {
+        frontier_set = frontier_set.iter().filter(|&x| *x != current).map(|x| *x).collect();
+        frontier_set.retain(|&x| not_contained(x, explored_set.clone()));
+        // All the ones with the lowest f cost are in lowest_f_costs
+        // Start of calculating best H_cost
+        if lowest_f_costs.clone().len() > 1 {
+            for i in lowest_f_costs.clone() {
                 if current_lowest_h_cost == -1 {
-                    current_lowest_h_cost = get_h_cost(lowest_f_cost, end);
-                    current = (lowest_f_cost.0 as usize, lowest_f_cost.1 as usize);
+                    println!("Set");
+                    current_lowest_h_cost = get_h_cost(i, end);
+                    lowest_h_cost = i;
                 }
-                else if get_h_cost(lowest_f_cost, end) < current_lowest_h_cost {
-                    current_lowest_h_cost = get_h_cost(lowest_f_cost, end);
-                    current = (lowest_f_cost.0 as usize, lowest_f_cost.1 as usize);
+                else if get_h_cost(i, end) < current_lowest_h_cost {
+                    current_lowest_h_cost = get_h_cost(i, end);
+                    lowest_h_cost = i;
                 }
             }
+            current = (lowest_h_cost.0 as usize, lowest_h_cost.1 as usize);
+        } else {
+        current = (lowest_f_costs[0].0 as usize, lowest_f_costs[0].1 as usize);
         }
-        let index = unexplored_set.iter().position(|&x| x == current).unwrap();
-        unexplored_set.remove(index);
-        let index = frontier_set.iter().position(|&x| x == current).unwrap();
-        frontier_set.remove(index);
-        explored_set.push(current);
-        println!("{}, {:?}", current_lowest_f_cost, lowest_f_costs);
+        println!("");
+        frontier_set.iter().for_each(|f| {println!("{:?}", f)});
+        frontier_set.retain(|&x| x != current);
+        if current == (end.0 as usize, end.1 as usize) {
+            break;
+        }
     }   
 }
 
@@ -167,3 +179,11 @@ pub fn get_f_cost(node: (i64, i64), start: (i64, i64), end: (i64, i64)) -> i64 {
     get_g_cost(node, start) + get_h_cost(node, end)
 }
 
+pub fn not_contained<G: PartialEq>(element: G, list: Vec<G>) -> bool {
+    for i in list {
+        if i == element {
+            return false;
+        }
+    }
+    true
+}
